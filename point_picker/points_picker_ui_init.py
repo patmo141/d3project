@@ -22,7 +22,7 @@
 # NONE!
 
 # Module imports
-from ..subtrees.common import ui
+from ..subtrees.addon_common.common import ui
 
 
 class PointsPicker_UI_Init():
@@ -50,7 +50,7 @@ class PointsPicker_UI_Init():
         #create a collapsille container to hold a few variables
         container = ui.collapsible('ui.collapse container', parent = self.ui_main)
         
-        i1 = ui.labeled_input_text(label='Sui.labeled_input_text', 
+        i1 = ui.labeled_input_text(label='ui.labeled_input_text', 
                               title='float property to BoundFLoat', 
                               value= self.variable_1) 
     

@@ -21,13 +21,14 @@ https://github.com/CGCookie/retopoflow
 import bpy
 import bgl
 
-from .subtrees.cookiecutter.cookiecutter import CookieCutter
+from .subtrees.addon_common.cookiecutter.cookiecutter import CookieCutter
+from .subtrees.addon_common.common.useractions import ActionHandler
 
-from .subtrees.common.maths import Point2D
-from .subtrees.common import ui
-from .subtrees.common.drawing import Drawing
+from .subtrees.addon_common.common.maths import Point2D
+from .subtrees.addon_common.common import ui
+from .subtrees.addon_common.common.drawing import Drawing
 
-from .subtrees.common.boundvar import BoundInt, BoundFloat, BoundBool
+from .subtrees.addon_common.common.boundvar import BoundInt, BoundFloat, BoundBool
 
 
 #some settings container
@@ -76,11 +77,16 @@ class CookieCutter_PassTrhoughTest(CookieCutter):
         
         
         #some data storage, simple single variables for now
-        #later, more coplex dictionaries or container class
+        #later, can use a dictionary and some smarter stuff
         self.variable_1 = BoundFloat('''options['variable_1']''', min_value =0.5, max_value = 15.5)
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
         self.variable_3 = BoundBool('''options['variable_3']''')
         
+        keymaps = {}
+        keymaps['done'] = {'ESC'}
+        keymaps['cancel'] = {'ESC'}
+        keymaps['finish'] = {'RET'}
+        self.actions = ActionHandler(self.context, keymaps)
         self.setup_ui()
         
         
@@ -157,8 +163,10 @@ class CookieCutter_PassTrhoughTest(CookieCutter):
 
     
     def should_pass_through(self, context, event):
-        print(context.region.type)
-        print(context.area.type)
+        
+        print(self._hover_ui)
+        if self._hover_ui: return False
+        
         
         if context.area.type != "VIEW_3D":
             return False

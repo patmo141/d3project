@@ -21,13 +21,13 @@ https://github.com/CGCookie/retopoflow
 import bpy
 import bgl
 
-from .subtrees.cookiecutter.cookiecutter import CookieCutter
+from .subtrees.addon_common.cookiecutter.cookiecutter import CookieCutter
 
-from .subtrees.common.maths import Point2D
-from .subtrees.common import ui
-from .subtrees.common.drawing import Drawing
+from .subtrees.addon_common.common.maths import Point2D
+from .subtrees.addon_common.common import ui
+from .subtrees.addon_common.common.drawing import Drawing
 
-from .subtrees.common.boundvar import BoundInt, BoundFloat, BoundBool
+from .subtrees.addon_common.common.boundvar import BoundInt, BoundFloat, BoundBool
 
 
 #some settings container
