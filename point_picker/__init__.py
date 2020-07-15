@@ -28,6 +28,8 @@ from mathutils.geometry import intersect_line_line, intersect_point_line, inters
 
 #subtree imports
 from ..subtrees.addon_common.cookiecutter.cookiecutter import CookieCutter
+from ..subtrees.addon_common.common.useractions import ActionHandler
+
 from ..subtrees.addon_common.common.boundvar import BoundInt, BoundFloat, BoundBool
 
 # Module imports
@@ -96,6 +98,20 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         self.points_shader = None
         self.points_batch = None
         self.create_points_batch() 
+        
+        
+        default_keymap = {
+                        "add":    {"LEFTMOUSE"},
+                        "grab":   {"LEFTMOUSE"},
+                        "remove": {"ALT+LEFTMOUSE", "RIGHTMOUSE"},
+                        "commit": {"RET"},
+                        "cancel": {"ESC"},
+                        "done": {'ENTER', 'UP_ARROW'}
+                            }
+
+        self.actions = ActionHandler(self.context, default_keymap)
+        #self.reload_stylings()
+        
         
         self.variable_1 = BoundFloat('''options['variable_1']''', min_value =0.5, max_value = 15.5)
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
@@ -186,7 +202,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             imx = Matrix.Identity(4)
             no_mx = imx.to_3x3().transposed()
            
-            res, loc, no, ind, obj, omx = context.scene.ray_cast(ray_origin, view_vector)
+            res, loc, no, ind, obj, omx = context.scene.ray_cast(context.view_layer, ray_origin, view_vector)
+            #res, loc, no, ind, obj, omx = context.scene.ray_cast(ray_origin, view_vector)
 
             if res:
                 hit = True
@@ -195,7 +212,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
                 #cast the ray into a plane a
                 #perpendicular to the view dir, at the last bez point of the curve
                 hit = True
-                view_direction = rv3d.view_rotation * Vector((0,0,-1))
+                view_direction = rv3d.view_rotation @ Vector((0,0,-1))
                 plane_pt = self.grab_undo_loc
                 loc = intersect_line_plane(ray_origin, ray_target,plane_pt, view_direction)
                 no = view_direction
@@ -212,7 +229,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             #    if face_ind != -1:
             #        hit = True
             #else:
-            ok, loc, no, face_ind = self.snap_ob.ray_cast(imx * ray_origin, imx * ray_target - imx*ray_origin)
+            ok, loc, no, face_ind = self.snap_ob.ray_cast(imx @ ray_origin, imx @ ray_target - imx @ ray_origin)
             if ok:
                 hit = True
 
@@ -220,8 +237,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             self.grab_cancel()
 
         else:
-            self.b_pts[self.selected].location = mx * loc
-            self.b_pts[self.selected].surface_normal = no_mx * no
+            self.b_pts[self.selected].location = mx @ loc
+            self.b_pts[self.selected].surface_normal = no_mx @ no
 
     def grab_cancel(self):
         old_co =  self.grab_undo_loc
@@ -248,7 +265,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             imx = Matrix.Identity(4)
             no_mx = Matrix.Identity(3)
             
-            hit, loc, no, ind, obj, omx = context.scene.ray_cast(ray_origin, view_vector)
+            hit, loc, no, ind, obj, omx = context.scene.ray_cast(context.view_layer, ray_origin, view_vector)
+            #hit, loc, no, ind, obj, omx = context.scene.ray_cast(ray_origin, view_vector)
                 #iomx = omx.inverted()
                 #no_mx = iomx.to_3x3().transposed()  #appa
                 #apparently no is reported in world coordinates
@@ -287,7 +305,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             return False
         # add new point
         elif self.hovered[0] == None:
-            new_point = D3Point(location=mx * loc, surface_normal=no_mx * no, view_direction=view_vector, source_object=obj if self.snap_type == "SCENE" else self.snap_ob)
+            new_point = D3Point(location=mx @ loc, surface_normal=no_mx @ no, view_direction=view_vector, source_object=obj if self.snap_type == "SCENE" else self.snap_ob)
             self.b_pts.append(new_point)
             new_point.label = self.getLabel(len(self.b_pts) - 1)
             self.hovered = ['POINT', len(self.b_pts) - 1]
@@ -344,7 +362,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             res, loc, no, ind, obj, omx = context.scene.ray_cast(context.view_layer, ray_origin, view_vector)
 
 
-            print(obj)
+            #print(obj)
             
         def dist(v):
             diff = v - Vector((x,y))
@@ -360,7 +378,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         screen_dist = dist(loc3d_reg2D(context.region, context.space_data.region_3d, closest_3d_point.location))
 
         self.hovered = ['POINT', self.b_pts.index(closest_3d_point)] if screen_dist < 20 else [None, -1]
-        print(self.hovered)
+        #print(self.hovered)
     #############################################
     # Subclassing functions
 

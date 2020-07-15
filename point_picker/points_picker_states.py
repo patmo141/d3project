@@ -46,6 +46,8 @@ class PointsPicker_States():
     @CookieCutter.FSM_State("main")
     def modal_main(self):
         
+        
+        
         if self.actions.pressed("cancel") and self.can_cancel():
             self.done(cancel=True)
             return 'cancel'
@@ -58,7 +60,9 @@ class PointsPicker_States():
         
         self.cursor_modal_set("HAND" if self.hovered[0] == "POINT" and not self.event.alt else "CROSSHAIR")
         
-        '''
+        #print(self.actions.just_pressed)
+        
+        
         # actions for no hovered point
         if self.hovered[0] is None:
             if self.actions.pressed("add"):
@@ -86,7 +90,7 @@ class PointsPicker_States():
         if self.actions.pressed("cancel") and self.can_cancel():
             self.done(cancel=True)
             return
-        '''
+        
        
     @CookieCutter.FSM_State("grab", "can enter")
     def can_start_grab(self):
