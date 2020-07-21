@@ -28,82 +28,79 @@ from gpu_extras.batch import batch_for_shader
 
 from mathutils import Vector
 from bpy_extras import view3d_utils
+from bpy_extras.view3d_utils import location_3d_to_region_2d, region_2d_to_vector_3d
 
 # Module imports
 from ..subtrees.addon_common.cookiecutter.cookiecutter import CookieCutter
-
-
-#borrowed from edge filet from Zeffi (included with blend)
-def draw_3d_points(context, points, size, color = (1,0,0,1)):
-    region = context.region
-    rv3d = context.space_data.region_3d
-
-
-    bgl.glEnable(bgl.GL_POINT_SMOOTH)
-    bgl.glPointSize(size)
-    # bgl.glEnable(bgl.GL_BLEND)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-
-    bgl.glDepthRange(0, 0.9990)     # squeeze depth just a bit
-    bgl.glEnable(bgl.GL_BLEND)
-
-    bgl.glDepthFunc(bgl.GL_LEQUAL)
-    bgl.glDepthMask(bgl.GL_FALSE)   # do not overwrite depth
-
-    bgl.glBegin(bgl.GL_POINTS)
-    # draw red
-    bgl.glColor4f(*color)
-    for coord in points:
-        vector3d = (coord.x, coord.y, coord.z)
-        bgl.glVertex3f(*vector3d)
-        # vector2d = view3d_utils.location_3d_to_region_2d(region, rv3d, vector3d)
-        # bgl.glVertex2f(*vector2d)
-    bgl.glEnd()
-
-    bgl.glDepthFunc(bgl.GL_LEQUAL)
-    bgl.glDepthRange(0.0, 1.0)
-    bgl.glDepthMask(bgl.GL_TRUE)
-
-    bgl.glDisable(bgl.GL_POINT_SMOOTH)
-    bgl.glDisable(bgl.GL_POINTS)
-    return
+from ..subtrees.addon_common.common.globals import Globals
+from ..subtrees.addon_common.common.blender import tag_redraw_all
+from ..subtrees.addon_common.common.maths import Point, Vec, Direction, Normal
+from ..subtrees.addon_common.common.maths import Point2D, Vec2D, Direction2D
+from ..subtrees.addon_common.common.maths import Color
+from ..subtrees.addon_common.common.drawing import (
+    CC_DRAW,
+    CC_2D_POINTS,
+    CC_3D_TRIANGLES
+)
 
 class PointsPicker_UI_Draw():
 
     ###################################################
     # draw functions
 
-
     def create_points_batch(self):
         vertices = [(v.location.x, v.location.y, v.location.z) for v in self.b_pts]        #TODO, use D3Point
         self.points_shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
         self.points_batch = batch_for_shader(self.points_shader, 'POINTS', {"pos":vertices})
-        
-        
-        
-        
-    @CookieCutter.Draw("post3d")
-    def draw_postview(self):
-        
-        
-        if not self.points_shader: return
-        
-        bgl.glDepthMask(bgl.GL_TRUE)
-        bgl.glPointSize(8)
-        bgl.glDepthFunc(bgl.GL_LEQUAL)
-        
+
+    def draw_default_points(self):
         self.points_shader.bind()
         self.points_shader.uniform_float("color", (1,1,1,1))
         self.points_batch.draw(self.points_shader)
         
+    def update_ui(self):
+        self.create_points_batch()
+        print('updating ui')
+        tag_redraw_all('Updated Points')
+        
+    @CookieCutter.Draw("post3d")
+    def draw_postview(self):
+
+        def point_to_point2D(xyz:Point):
+            xy = location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, xyz)
+            if xy is None: return None
+            return Point2D(xy)
+
+        def draw(color):
+            vertices = [(v.location.x, v.location.y, v.location.z) for v in self.b_pts]        #TODO, use D3Point
+            vertices = [point_to_point2D(v) for v in vertices]
+            point_color = color
+
+            bgl.glEnable(bgl.GL_BLEND)
+            CC_DRAW.stipple(pattern=[4,4])
+            CC_DRAW.point_size(10)
+
+            with Globals.drawing.draw(CC_2D_POINTS) as draw:
+                draw.color(point_color)
+                for v in vertices:
+                    draw.vertex(v)
+                
+        bgl.glDepthMask(bgl.GL_TRUE)
+        bgl.glPointSize(8)
+        bgl.glDepthFunc(bgl.GL_LEQUAL)
+
+        #default ugly square points
+
+        # if self.points_shader:
+        #     self.draw_default_points()
+
+        #sexy round points, no depth masking
+
+        draw(Color((0.5,0.8,0.3,1)))
+        
         bgl.glDepthFunc(bgl.GL_LEQUAL)
         bgl.glDepthMask(bgl.GL_TRUE)
         bgl.glDepthRange(0, 1)
-        
-        #bgl.glDisable(bgl.GL_POINT_SMOOTH)
-        #bgl.glDisable(bgl.GL_POINTS)
-        bgl.glPointSize(1)
-    
     
 
     @CookieCutter.Draw("post2d")

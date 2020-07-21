@@ -34,7 +34,7 @@ class PointsPicker_UI_Init():
         # UI Box functionality
         # NONE!
         
-        self.ui_main = ui.framed_dialog(label = 'ui.framed_dialog',
+        self.ui_main = ui.framed_dialog(label = 'Point Picker',
                                           resiable = None,
                                           resiable_x = True,
                                           resizable_y=False, 
@@ -48,7 +48,7 @@ class PointsPicker_UI_Init():
         #ui.button(label='ui.button', title = 'self.tool_action() method linked to button', parent=ui_tools, on_mouseclick=self.tool_action)    
         
         #create a collapsille container to hold a few variables
-        container = ui.collapsible('ui.collapse container', parent = self.ui_main)
+        container = ui.collapsible('options', parent = self.ui_main)
         
         i1 = ui.labeled_input_text(label='ui.labeled_input_text', 
                               title='float property to BoundFLoat', 

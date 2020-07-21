@@ -42,7 +42,6 @@ from .points_picker_datastructure import D3Point
 
 #from ..subtrees.addon_common.common.maths import Point, Point2D
 #from ...subtrees.addon_common.common.decorators import PersistentOptions
-#from ...functions.common import *
 
 
 #some settings container
@@ -96,10 +95,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         
         
         self.points_shader = None
-        self.points_batch = None
-        self.create_points_batch() 
-        
-        
+        self.points_batch = None    
         default_keymap = {
                         "add":    {"LEFTMOUSE"},
                         "grab":   {"LEFTMOUSE"},
@@ -239,6 +235,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         else:
             self.b_pts[self.selected].location = mx @ loc
             self.b_pts[self.selected].surface_normal = no_mx @ no
+            self.update_ui()
 
     def grab_cancel(self):
         old_co =  self.grab_undo_loc
@@ -392,13 +389,13 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         return True
 
     def add_point_post(self, new_point):
-        pass
+        self.update_ui()
 
     def remove_point_pre(self, removed_pt):
         pass
     
-    def remove_point_post(self, removed_pt):
-        pass
+    def remove_point_post(self):
+        self.update_ui()
     
     def move_point_post(self, moved_point):
         pass

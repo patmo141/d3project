@@ -76,8 +76,8 @@ class CookieCutter_UITest(CookieCutter):
         
         
         
-    #def update(self):
-        #self.ui_action.set_label('Press: %s' % (','.join(self.actions.now_pressed.keys()),))
+    def update(self):
+        self.ui_action.set_label('Press: %s' % (','.join(self.actions.now_pressed.keys()),))
 
     def end_commit(self):
         pass
