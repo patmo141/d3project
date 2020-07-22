@@ -37,8 +37,10 @@ from .points_picker_states import PointsPicker_States
 from .points_picker_ui_init import PointsPicker_UI_Init
 from .points_picker_ui_draw import PointsPicker_UI_Draw
 from .points_picker_datastructure import D3Point
+from .points_picker_render import D3PointsRender
+from .points_picker_render import opts as render_opts
 
-
+from ..subtrees.addon_common.common.maths import XForm
 
 #from ..subtrees.addon_common.common.maths import Point, Point2D
 #from ...subtrees.addon_common.common.decorators import PersistentOptions
@@ -113,8 +115,6 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
         self.variable_3 = BoundBool('''options['variable_3']''')
         
-        
-        
         self.ui_setup()
         self.ui_setup_post()
 
@@ -130,7 +130,13 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         self.grab_undo_loc = None
         self.grab_undo_no = None
         self.mouse = (None, None)
+
+        self.xform = XForm(Matrix.Identity(4))
+
+        self.d3_points_render = D3PointsRender(self, render_opts)
+        
         self.start_post()
+        self.update_ui()
 
     def end_commit(self):
         """ Commit changes to mesh! """
