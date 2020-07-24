@@ -49,48 +49,10 @@ from ..subtrees.addon_common.common.drawing import (
 from ..subtrees.addon_common.common.maths import Ray, XForm, BBox, Plane
 
 class PointsPicker_UI_Draw():
-    buffered_renders = []
     ###################################################
     # draw functions
 
-    def point_to_point2D(self, xyz:Point):
-        xy = location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, xyz)
-        if xy is None: return None
-        return Point2D(xy)
-
-    def create_points_batch(self):
-        vertices = [(v.location.x, v.location.y, v.location.z) for v in self.b_pts]        #TODO, use D3Point
-        self.points_shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
-        self.points_batch = batch_for_shader(self.points_shader, 'POINTS', {"pos":vertices})
-
-    def add_buffered_render(self, data):
-        batch = D3PointsRender()
-        batch.buffer(data['vco'])
-        self.buffered_renders.append(batch)
-
-    def gather_points(self):
-        vert_count = 100000
-
-        verts = [(v.location.x, v.location.y, v.location.z) for v in self.b_pts]
-        verts = [self.point_to_point2D(v) for v in verts]
-        l = len(verts)
-
-        for i0 in range(0, l, vert_count):
-            i1 = min(l, i0 + vert_count)
-            vert_data = {
-                'vco': [tuple(bmv) for bmv in verts[i0:i1]],
-            }
-            self.add_buffered_render(vert_data)
-
-
-    def draw_default_points(self):
-        self.points_shader.bind()
-        self.points_shader.uniform_float("color", (1,1,1,1))
-        self.points_batch.draw(self.points_shader)
-        
     def update_ui(self):
-        # self.create_points_batch()
-        # self.gather_points()
         self.d3_points_render._gather_data()
         print('updating ui')
         tag_redraw_all('Updated Points')
@@ -131,8 +93,6 @@ class PointsPicker_UI_Draw():
             if pt.label:
                 if self.selected == i:
                     color = (0,1,1,1)
-                elif self.hovered[1] == i:
-                    color = (0,1,0,1)
                 else:
                     color = (1,0,0,1)
                 #bgl.glColor4f(*color)

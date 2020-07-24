@@ -49,7 +49,7 @@ from ..subtrees.addon_common.common.utils import min_index
 from ..subtrees.addon_common.common.hasher import hash_object, hash_bmesh
 from ..subtrees.addon_common.common.decorators import stats_wrapper
 from ..subtrees.addon_common.common import bmesh_render as bmegl
-from ..subtrees.addon_common.common.d3_point_render import BufferedRender_Batch
+from .d3_point_render import BufferedRender_Batch
 
 from ..subtrees.addon_common.common.colors import colorname_to_color
 
@@ -63,8 +63,6 @@ from ..subtrees.addon_common.common.colors import colorname_to_color
 #'target alpha backface':    0.2,
 #'target cull backfaces':    False,
 
-
-
 color_mesh = colorname_to_color['indigo']
 color_select = colorname_to_color['darkorange']
 edge_size = 2.0
@@ -73,28 +71,6 @@ normal_offset_multiplier = 1.0
 constrain_offset = True
 
 opts = {
-            'poly color':                  (*color_mesh[:3],   0.20),
-            'poly color selected':         (*color_select[:3], 0.20),
-            'poly offset':                 0.000010,
-            'poly dotoffset':              1.0,
-            'poly mirror color':           (*color_mesh[:3],   0.10),
-            'poly mirror color selected':  (*color_select[:3], 0.10),
-            'poly mirror offset':          0.000010,
-            'poly mirror dotoffset':       1.0,
-
-            'line color':                  (*color_mesh[:3],   1.00),
-            'line color selected':         (*color_select[:3], 1.00),
-            'line width':                  edge_size,
-            'line offset':                 0.000012,
-            'line dotoffset':              1.0,
-            'line mirror stipple':         False,
-            'line mirror color':           (*color_mesh[:3],   0.25),
-            'line mirror color selected':  (*color_select[:3], 0.25),
-            'line mirror width':           1.5,
-            'line mirror offset':          0.000012,
-            'line mirror dotoffset':       1.0,
-            'line mirror stipple':         False,
-
             'point color':                 (*color_mesh[:3],   1.00),
             'point color selected':        (*color_select[:3], 1.00),
             'point color highlight':       (1.0, 1.0, 0.1, 1.0),
@@ -102,11 +78,6 @@ opts = {
             'point size highlight':        10.0,
             'point offset':                0.000015,
             'point dotoffset':             1.0,
-            'point mirror color':          (*color_mesh[:3],   0.25),
-            'point mirror color selected': (*color_select[:3], 0.25),
-            'point mirror size':           3.0,
-            'point mirror offset':         0.000015,
-            'point mirror dotoffset':      1.0,
 
             'focus mult':                  1.0,
             'normal offset':               0.001 * normal_offset_multiplier,    # pushes vertices out along normal
@@ -122,10 +93,6 @@ class D3PointsRender():
     
     def __init__(self, d3_points, opts):
         
-        self.load_verts = True #opts.get('load verts', True)
-        self.load_edges = False #opts.get('load edges', True)
-        self.load_faces = False #opts.get('load faces', True)
-
         self.buf_matrix_model = XForm(Matrix.Identity(4)).to_bglMatrix_Model()
         self.buf_matrix_inverse = XForm(Matrix.Identity(4)).to_bglMatrix_Inverse()
         self.buf_matrix_normal = XForm(Matrix.Identity(4)).to_bglMatrix_Normal()
@@ -161,7 +128,7 @@ class D3PointsRender():
     #@profiler.function
     def add_buffered_render(self, bgl_type, data):
         batch = BufferedRender_Batch(bgl_type)
-        batch.buffer(data['vco'], data['vno'], data['sel'])
+        batch.buffer(data['vco'], data['vno'], data['sel'], data['hov'])
         self.buffered_renders.append(batch)
         # buffered_render = BGLBufferedRender(bgl_type)
         # buffered_render.buffer(data['vco'], data['vno'], data['sel'], data['idx'])
@@ -173,13 +140,14 @@ class D3PointsRender():
         #print('gathering data')
         self.buffered_renders = []  #TODO, smart update only the buffers that need it
 
+        def sel(selected):
+            return 1.0 if selected else 0.0
+
         def gather():
             vert_count = 100000
-
             '''
             IMPORTANT NOTE: DO NOT USE PROFILER INSIDE THIS FUNCTION IF LOADING ASYNCHRONOUSLY!
             '''
-                
             try:
                 time_start = time.time()
 
@@ -187,21 +155,19 @@ class D3PointsRender():
                 # selection will bleed
                 #pr = profiler.start('gathering', enabled=not self.async_load)
                 if True:  #why if True?
-
-                    if self.load_verts:
-                        verts = [(v.location.x, v.location.y, v.location.z) for v in self.d3_points.b_pts]
-                        print(verts)
-                        l = len(verts)
-                        for i0 in range(0, l, vert_count):
-                            i1 = min(l, i0 + vert_count)
-                            vert_data = {
-                                'vco': [tuple(v) for v in verts[i0:i1]],
-                                'vno': [tuple(v) for v in verts[i0:i1]],
-                                'sel': [1.0 for v in verts[i0:i1]],
-                                'idx': None,  # list(range(len(self.bmesh.verts))),
-                            }
-                            
-                            self.add_buffered_render(bgl.GL_POINTS, vert_data)
+                    verts = self.d3_points.b_pts
+                    l = len(verts)
+                    for i0 in range(0, l, vert_count):
+                        i1 = min(l, i0 + vert_count)
+                        vert_data = {
+                            'vco': [tuple((v.location.x, v.location.y, v.location.z)) for v in verts[i0:i1]],
+                            'vno': [tuple((v.location.x, v.location.y, v.location.z)) for v in verts[i0:i1]],
+                            'sel': [sel(True) for v in verts[i0:i1]],
+                            'hov': [sel(v.hovered) for v in verts[i0:i1]],
+                            'idx': None,  # list(range(len(self.bmesh.verts))),
+                        }
+                        
+                        self.add_buffered_render(bgl.GL_POINTS, vert_data)
 
                 time_end = time.time()
                 # print('RFMeshRender: Gather time: %0.2f' % (time_end - time_start))
@@ -216,14 +182,9 @@ class D3PointsRender():
         #pr = profiler.start('Gathering data for RFMesh (%ssync)' % ('a' if self.async_load else ''))
         gather()
         
-
-
-    
     def clean(self):  #used to only reload if mesh has changed,
-        
         return
     
-
     def draw(
         self,
         view_forward, unit_scaling_factor,
@@ -232,8 +193,6 @@ class D3PointsRender():
         buf_matrix_proj,
         alpha_above, alpha_below,
         cull_backfaces, alpha_backface,
-        symmetry=None, symmetry_view=None,
-        symmetry_effect=0.0, symmetry_frame: Frame=None
     ):
         self.clean()
         if not self.buffered_renders:
@@ -255,11 +214,6 @@ class D3PointsRender():
             opts['forward direction'] = view_forward
             opts['unit scaling factor'] = unit_scaling_factor
 
-            opts['symmetry'] = symmetry
-            opts['symmetry frame'] = symmetry_frame
-            opts['symmetry view'] = symmetry_view
-            opts['symmetry effect'] = symmetry_effect
-
             bmegl.glSetDefaultOptions()
 
             opts['cull backfaces'] = cull_backfaces
@@ -271,10 +225,6 @@ class D3PointsRender():
             #pr = profiler.start('geometry above')
             if True:
                 bgl.glDepthFunc(bgl.GL_LEQUAL)
-                opts['poly hidden']         = 1 - alpha_above
-                opts['poly mirror hidden']  = 1 - alpha_above
-                opts['line hidden']         = 1 - alpha_above
-                opts['line mirror hidden']  = 1 - alpha_above
                 opts['point hidden']        = 1 - alpha_above
                 opts['point mirror hidden'] = 1 - alpha_above
                 for buffered_render in self.buffered_renders:
@@ -286,10 +236,6 @@ class D3PointsRender():
                 #pr = profiler.start('geometry below')
                 if True:
                     bgl.glDepthFunc(bgl.GL_GREATER)
-                    opts['poly hidden']         = 1 - alpha_below
-                    opts['poly mirror hidden']  = 1 - alpha_below
-                    opts['line hidden']         = 1 - alpha_below
-                    opts['line mirror hidden']  = 1 - alpha_below
                     opts['point hidden']        = 1 - alpha_below
                     opts['point mirror hidden'] = 1 - alpha_below
                     for buffered_render in self.buffered_renders:

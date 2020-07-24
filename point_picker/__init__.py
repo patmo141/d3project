@@ -380,7 +380,21 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         closest_3d_point = min(self.b_pts, key=dist3d)
         screen_dist = dist(loc3d_reg2D(context.region, context.space_data.region_3d, closest_3d_point.location))
 
+        last_hovered = self.hovered
         self.hovered = ['POINT', self.b_pts.index(closest_3d_point)] if screen_dist < 20 else [None, -1]
+
+        if last_hovered != self.hovered:
+            print(self.hovered)
+            for idx, p in enumerate(self.b_pts):
+                if self.b_pts.index(closest_3d_point) == idx:
+                    p.hovered = True
+                else:
+                    p.hovered = False
+                if not self.hovered[0]:
+                    p.hovered = False
+
+            self.update_ui()
+            
         #print(self.hovered)
     #############################################
     # Subclassing functions

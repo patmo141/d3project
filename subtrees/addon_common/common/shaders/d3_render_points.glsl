@@ -12,14 +12,6 @@ uniform mat4  matrix_v;         // view xform matrix
 uniform mat3  matrix_vn;        // view xform matrix for normal
 uniform mat4  matrix_p;         // projection matrix
 
-uniform int   mirror_view;      // 0=none; 1=draw edge at plane; 2=color faces on far side of plane
-uniform float mirror_effect;    // strength of effect: 0=none, 1=full
-uniform bvec3 mirroring;        // mirror along axis: 0=false, 1=true
-uniform vec3  mirror_o;         // mirroring origin wrt world
-uniform vec3  mirror_x;         // mirroring x-axis wrt world
-uniform vec3  mirror_y;         // mirroring y-axis wrt world
-uniform vec3  mirror_z;         // mirroring z-axis wrt world
-
 uniform float hidden;           // affects alpha for geometry below surface. 0=opaque, 1=transparent
 uniform vec3  vert_scale;       // used for mirroring
 uniform float normal_offset;    // how far to push geometry along normal
@@ -47,6 +39,7 @@ attribute vec3  vert_pos;       // position wrt model
 attribute vec2  vert_offset;
 attribute vec3  vert_norm;      // normal wrt model
 attribute float selected;       // is vertex selected?  0=no; 1=yes
+attribute float hovered;
 
 varying vec4 vPPosition;        // final position (projected)
 varying vec4 vCPosition;        // position wrt camera
@@ -92,10 +85,6 @@ void main() {
     vec3 wnorm = normalize(matrix_mn * norm);
 
     vec4 tpos = matrix_ti * wpos;
-    vec3 tnorm = vec3(
-        dot(wnorm, mirror_x),
-        dot(wnorm, mirror_y),
-        dot(wnorm, mirror_z));
 
     vCPosition  = matrix_v * wpos;
     vPPosition  = off + xyz(matrix_p * matrix_v * wpos);
@@ -114,6 +103,7 @@ void main() {
     gl_Position = vPPosition;
 
     vColor = (!use_selection || selected < 0.5) ? color : color_selected;
+    vColor = (!use_selection || hovered < 0.5) ? color : color_selected;
     vColor.a *= (selected > 0.5) ? 1.0 : 1.0 - hidden;
     //vColor.a *= 1.0 - hidden;
 }
@@ -127,118 +117,9 @@ layout(location = 0) out vec4 outColor;
 
 vec3 xyz(vec4 v) { return v.xyz / v.w; }
 
-
-
-float cro(in vec2 a, in vec2 b ) { return a.x*b.y - a.y*b.x; }
-    
-float sdUnevenCapsule( in vec2 p, in vec2 pa, in vec2 pb, in float ra, in float rb )
-{
-    p  -= pa;
-    pb -= pa;
-    float h = dot(pb,pb);
-    vec2  q = vec2( dot(p,vec2(pb.y,-pb.x)), dot(p,pb) )/h;
-    
-    //-----------
-    
-    q.x = abs(q.x);
-    
-    float b = ra-rb;
-    vec2  c = vec2(sqrt(h-b*b),b);
-    
-    float k = cro(c,q);
-    float m = dot(c,q);
-    float n = dot(q,q);
-    
-         if( k < 0.0 ) return sqrt(h*(n            )) - ra;
-    else if( k > c.x ) return sqrt(h*(n+1.0-2.0*q.y)) - rb;
-                       return m                       - ra;
-}
-
-float smoothMerge(float d1, float d2, float k)
-{
-    float h = clamp(0.5 + 0.5*(d2 - d1)/k, 0.0, 1.0);
-    return mix(d2, d1, h) - k * h * (1.0-h);
-}
-
-
-float toothDistance(vec2 p)
-{
-    vec2 v1 = cos( 2.4 + vec2(0.0,2.00) + 0.0 );
-	vec2 v2 = cos( 2.4 + vec2(0.0,1.50) + 1.5 );
-    float r1 = 0.1;
-    float r2 = 0.45;
-    
-    p.x *= 1.2;
-    
-	float d1 = sdUnevenCapsule( p, v1, v2, r1, r2 );
-    float d2 = sdUnevenCapsule( p + vec2(0.5, 0.0), v1, v2, r1, r2 );
-    
-    float d = smoothMerge(d1, d2, 0.1);
-    
-    d = abs(smoothstep(0.6, -0.5, d) *0.9);
-    
-    float mask = smoothstep(0.0, 0.1, d-0.5);
-    
-    d *= mask;
-
-    return d;
-}
-
 // adjusts color based on mirroring settings and fragment position
 vec4 coloring(vec4 orig) {
     vec4 mixer = vec4(0.6, 0.6, 0.6, 0.0);
-    if(mirror_view == 0) {
-        // NO SYMMETRY VIEW
-    } else if(mirror_view == 1) {
-        // EDGE VIEW
-        float edge_width = 5.0 / screen_size.y;
-        vec3 viewdir;
-        if(perspective) {
-            viewdir = normalize(xyz(vCPosition));
-        } else {
-            viewdir = vec3(0,0,1);
-        }
-        vec3 diffc_x = xyz(vCTPosition_x) - xyz(vCPosition);
-        vec3 diffc_y = xyz(vCTPosition_y) - xyz(vCPosition);
-        vec3 diffc_z = xyz(vCTPosition_z) - xyz(vCPosition);
-        vec3 dirc_x = normalize(diffc_x);
-        vec3 dirc_y = normalize(diffc_y);
-        vec3 dirc_z = normalize(diffc_z);
-        vec3 diffp_x = xyz(vPTPosition_x) - xyz(vPPosition);
-        vec3 diffp_y = xyz(vPTPosition_y) - xyz(vPPosition);
-        vec3 diffp_z = xyz(vPTPosition_z) - xyz(vPPosition);
-        vec3 aspect = vec3(1.0, screen_size.y / screen_size.x, 0.0);
-
-        if(mirroring.x && length(diffp_x * aspect) < edge_width * (1.0 - pow(abs(dot(viewdir,dirc_x)), 10.0))) {
-            float s = (vTPosition.x < 0.0) ? 1.0 : 0.1;
-            mixer.r = 1.0;
-            mixer.a = mirror_effect * s + mixer.a * (1.0 - s);
-        }
-        if(mirroring.y && length(diffp_y * aspect) < edge_width * (1.0 - pow(abs(dot(viewdir,dirc_y)), 10.0))) {
-            float s = (vTPosition.y > 0.0) ? 1.0 : 0.1;
-            mixer.g = 1.0;
-            mixer.a = mirror_effect * s + mixer.a * (1.0 - s);
-        }
-        if(mirroring.z && length(diffp_z * aspect) < edge_width * (1.0 - pow(abs(dot(viewdir,dirc_z)), 10.0))) {
-            float s = (vTPosition.z < 0.0) ? 1.0 : 0.1;
-            mixer.b = 1.0;
-            mixer.a = mirror_effect * s + mixer.a * (1.0 - s);
-        }
-    } else if(mirror_view == 2) {
-        // FACE VIEW
-        if(mirroring.x && vTPosition.x < 0.0) {
-            mixer.r = 1.0;
-            mixer.a = mirror_effect;
-        }
-        if(mirroring.y && vTPosition.y > 0.0) {
-            mixer.g = 1.0;
-            mixer.a = mirror_effect;
-        }
-        if(mirroring.z && vTPosition.z < 0.0) {
-            mixer.b = 1.0;
-            mixer.a = mirror_effect;
-        }
-    }
     float m0 = mixer.a, m1 = 1.0 - mixer.a;
     return vec4(mixer.rgb * m0 + orig.rgb * m1, m0 + orig.a * m1);
 }
@@ -248,16 +129,6 @@ void main() {
     float focus = (view_distance - clip_start) / clip + 0.04;
     vec3  rgb   = vColor.rgb;
     float alpha = vColor.a;
-
-    // if(use_rounding) {
-    //     float dist_from_center = length(screen_size * (vPCPosition - vPPosition.xy));
-    //     float alpha_mult = 1.0 - (dist_from_center - radius);
-    //     if(alpha_mult <= 0) {
-    //         discard;
-    //         return;
-    //     }
-    //     alpha *= alpha_mult;
-    // }
 
     if(perspective) {
         // perspective projection
@@ -316,13 +187,8 @@ void main() {
     p *= 0.01;
     p.y *= -1.0;
 
-    float d = toothDistance(p);
-
-    alpha *= smoothstep(0.0, 0.1, d);
-
-    outColor = coloring(vec4(vec3(d), alpha));
-    // outColor = coloring(vec4(vec3(p, 0.0), 1.0));
-
+    vec4 shaderOut = mainPointShader(p, 0.0, 0.0);
+    
     // https://wiki.blender.org/wiki/Reference/Release_Notes/2.83/Python_API
-    outColor = blender_srgb_to_framebuffer_space(outColor);
+    outColor = blender_srgb_to_framebuffer_space(shaderOut);
 }

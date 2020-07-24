@@ -37,6 +37,7 @@ import math
 import ctypes
 import random
 import traceback
+from pathlib import Path
 
 import bgl
 import bpy
@@ -49,16 +50,14 @@ from bpy_extras.view3d_utils import (
 from mathutils import Vector, Matrix, Quaternion
 from mathutils.bvhtree import BVHTree
 
-from .debug import dprint
-from .drawing import Drawing
-from .shaders import Shader
-from .utils import shorten_floats
-from .maths import Point, Direction, Frame, XForm
-from .maths import invert_matrix, matrix_normal
-from .profiler import profiler
-from .decorators import blender_version_wrapper, add_cache
-
-
+from ..subtrees.addon_common.common.debug import dprint
+from ..subtrees.addon_common.common.drawing import Drawing
+from ..subtrees.addon_common.common.shaders import Shader
+from ..subtrees.addon_common.common.utils import shorten_floats
+from ..subtrees.addon_common.common.maths import Point, Direction, Frame, XForm
+from ..subtrees.addon_common.common.maths import invert_matrix, matrix_normal
+from ..subtrees.addon_common.common.profiler import profiler
+from ..subtrees.addon_common.common.decorators import blender_version_wrapper, add_cache
 
 # note: not all supported by user system, but we don't need full functionality
 # https://en.wikipedia.org/wiki/OpenGL_Shading_Language#Versions
@@ -147,55 +146,20 @@ def glSetOptions(prefix, opts):
     set_if_set('size',           set_pointsize)
     set_if_set('stipple',        set_stipple)
 
-
-def glSetMirror(symmetry=None, view=None, effect=0.0, frame: Frame=None):
-    mirroring = (0, 0, 0)
-    if symmetry and frame:
-        mx = 1.0 if 'x' in symmetry else 0.0
-        my = 1.0 if 'y' in symmetry else 0.0
-        mz = 1.0 if 'z' in symmetry else 0.0
-        mirroring = (mx, my, mz)
-        bmeshShader.assign('mirror_o', frame.o)
-        bmeshShader.assign('mirror_x', frame.x)
-        bmeshShader.assign('mirror_y', frame.y)
-        bmeshShader.assign('mirror_z', frame.z)
-    bmeshShader.assign('mirror_view', {'Edge': 1, 'Face': 2}.get(view, 0))
-    bmeshShader.assign('mirror_effect', effect)
-    bmeshShader.assign('mirroring', mirroring)
-
-def triangulateFace(verts):
-    l = len(verts)
-    if l < 3: return
-    if l == 3:
-        yield verts
-        return
-    if l == 4:
-        v0,v1,v2,v3 = verts
-        yield (v0,v1,v2)
-        yield (v0,v2,v3)
-        return
-    iv = iter(verts)
-    v0, v2 = next(iv), next(iv)
-    for v3 in iv:
-        v1, v2 = v2, v3
-        yield (v0, v1, v2)
-
-
 #############################################################################################################
 #############################################################################################################
 #############################################################################################################
 
 import gpu
 from gpu_extras.batch import batch_for_shader
-from .shaders import Shader
+from ..subtrees.addon_common.common.shaders import Shader
 
+point_shader_name = "tooth"
+point_shader = open(Path(__file__).parent / "point_shaders" / f"{point_shader_name}.glsl", 'rt').read()
 verts_vs, verts_fs = Shader.parse_file('d3_render_points.glsl', includeVersion=False)
-verts_shader = gpu.types.GPUShader(verts_vs, verts_fs)
-edges_vs, edges_fs = Shader.parse_file('bmesh_render_edges.glsl', includeVersion=False)
-edges_shader = gpu.types.GPUShader(edges_vs, edges_fs)
-faces_vs, faces_fs = Shader.parse_file('bmesh_render_faces.glsl', includeVersion=False)
-faces_shader = gpu.types.GPUShader(faces_vs, faces_fs)
+verts_fs = point_shader + verts_fs
 
+verts_shader = gpu.types.GPUShader(verts_vs, verts_fs)
 
 class BufferedRender_Batch:
     _quarantine = {}
@@ -204,38 +168,25 @@ class BufferedRender_Batch:
         global faces_shader, edges_shader, verts_shader
         self.count = 0
         self.gltype = gltype
-        self.shader, self.shader_type, self.gltype_name, self.gl_count, self.options_prefix = {
-            bgl.GL_POINTS:    (verts_shader, 'POINTS', 'points',    1, 'point'),
-            bgl.GL_LINES:     (edges_shader, 'LINES',  'lines',     2, 'line'),
-            bgl.GL_TRIANGLES: (faces_shader, 'TRIS',   'triangles', 3, 'poly'),
-        }[self.gltype]
+        self.shader = verts_shader
+        self.shader_type = 'POINTS'
+        self.gltype_name = 'points'
+        self.gl_count = 1
+        self.options_prefix = 'point'
         self.batch = None
         self._quarantine.setdefault(self.shader, set())
 
-    def buffer(self, pos, norm, sel):
+    def buffer(self, pos, norm, sel, hov):
         if self.shader == None: return
-        if self.shader_type == 'POINTS':
-            data = {
-                'vert_pos':    [p for p in pos  for __ in range(6)],
-                'vert_norm':   [n for n in norm for __ in range(6)],
-                'selected':    [s for s in sel  for __ in range(6)],
-                'vert_offset': [o for _ in pos for o in [(0,0), (1,0), (0,1), (0,1), (1,0), (1,1)]],
-            }
-        elif self.shader_type == 'LINES':
-            data = {
-                'vert_pos0':   [p0 for (p0,p1) in zip(pos[0::2], pos[1::2] ) for __ in range(6)],
-                'vert_pos1':   [p1 for (p0,p1) in zip(pos[0::2], pos[1::2] ) for __ in range(6)],
-                'vert_norm':   [n0 for (n0,n1) in zip(norm[0::2],norm[1::2]) for __ in range(6)],
-                'selected':    [s0 for (s0,s1) in zip(sel[0::2], sel[1::2] ) for __ in range(6)],
-                'vert_offset': [o  for _ in pos[0::2] for o in [(0,0), (0,1), (1,1), (0,0), (1,1), (1,0)]],
+
+        data = {
+            'vert_pos':    [p for p in pos  for __ in range(6)],
+            'vert_norm':   [n for n in norm for __ in range(6)],
+            'selected':    [s for s in sel  for __ in range(6)],
+            'hovered':     [h for h in hov  for __ in range(6)],
+            'vert_offset': [o for _ in pos for o in [(0,0), (1,0), (0,1), (0,1), (1,0), (1,1)]],
         }
-        elif self.shader_type == 'TRIS':
-            data = {
-                'vert_pos':    pos,
-                'vert_norm':   norm,
-                'selected':    sel,
-            }
-        else: assert False, 'BufferedRender_Batch.buffer: Unhandled type: ' + self.shader_type
+
         self.batch = batch_for_shader(self.shader, 'TRIS', data) # self.shader_type, data)
         self.count = len(pos)
 
@@ -258,10 +209,7 @@ class BufferedRender_Batch:
         set_if_set('hidden',         lambda v: self.uniform_float('hidden', v))
         set_if_set('offset',         lambda v: self.uniform_float('offset', v))
         set_if_set('dotoffset',      lambda v: self.uniform_float('dotoffset', v))
-        if self.shader_type == 'POINTS':
-            set_if_set('size',       lambda v: self.uniform_float('radius', v*dpi_mult))
-        elif self.shader_type == 'LINES':
-            set_if_set('width',      lambda v: self.uniform_float('radius', v*dpi_mult))
+        set_if_set('size',       lambda v: self.uniform_float('radius', v*dpi_mult))
 
     def _draw(self, sx, sy, sz):
         self.uniform_float('vert_scale', (sx, sy, sz))
@@ -288,7 +236,6 @@ class BufferedRender_Batch:
 
     def draw(self, opts):
         if self.shader == None or self.count == 0: return
-        if self.gltype == bgl.GL_LINES and opts.get('line width', 1.0) <= 0: return
         if self.gltype == bgl.GL_POINTS and opts.get('point size', 1.0) <= 0: return
 
         shader = self.shader
@@ -318,25 +265,6 @@ class BufferedRender_Batch:
         self.uniform_float('dir_forward', opts['forward direction'])
         self.uniform_float('unit_scaling_factor', opts['unit scaling factor'])
 
-        mx, my, mz = opts.get('mirror x', False), opts.get('mirror y', False), opts.get('mirror z', False)
-        symmetry = opts.get('symmetry', None)
-        symmetry_frame = opts.get('symmetry frame', None)
-        symmetry_view = opts.get('symmetry view', None)
-        symmetry_effect = opts.get('symmetry effect', 0.0)
-        mirroring = (False, False, False)
-        if symmetry and symmetry_frame:
-            mx = 'x' in symmetry
-            my = 'y' in symmetry
-            mz = 'z' in symmetry
-            mirroring = (mx, my, mz)
-            self.uniform_float('mirror_o', symmetry_frame.o)
-            self.uniform_float('mirror_x', symmetry_frame.x)
-            self.uniform_float('mirror_y', symmetry_frame.y)
-            self.uniform_float('mirror_z', symmetry_frame.z)
-        self.uniform_int('mirror_view', [{'Edge': 1, 'Face': 2}.get(symmetry_view, 0)])
-        self.uniform_float('mirror_effect', symmetry_effect)
-        self.uniform_bool('mirroring', mirroring)
-
         self.uniform_float('normal_offset',    opts.get('normal offset', 0.0))
         self.uniform_bool('constrain_offset', [opts.get('constrain offset', True)]) # must be a sequence!?
 
@@ -355,16 +283,6 @@ class BufferedRender_Batch:
 
         self.set_options(self.options_prefix, opts)
         self._draw(1, 1, 1)
-
-        if mx or my or mz:
-            self.set_options('%s mirror' % self.options_prefix, opts)
-            if mx:               self._draw(-1,  1,  1)
-            if        my:        self._draw( 1, -1,  1)
-            if               mz: self._draw( 1,  1, -1)
-            if mx and my:        self._draw(-1, -1,  1)
-            if mx        and mz: self._draw(-1,  1, -1)
-            if        my and mz: self._draw( 1, -1, -1)
-            if mx and my and mz: self._draw(-1, -1, -1)
 
         gpu.shader.unbind()
 
