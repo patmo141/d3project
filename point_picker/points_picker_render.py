@@ -45,6 +45,7 @@ from ..subtrees.addon_common.common.maths import Point, Direction, Normal, Frame
 from ..subtrees.addon_common.common.maths import Point2D, Vec2D, Direction2D
 from ..subtrees.addon_common.common.maths import Ray, XForm, BBox, Plane
 from ..subtrees.addon_common.common.ui import Drawing
+from ..subtrees.addon_common.common.blender import tag_redraw_all
 from ..subtrees.addon_common.common.utils import min_index
 from ..subtrees.addon_common.common.hasher import hash_object, hash_bmesh
 from ..subtrees.addon_common.common.decorators import stats_wrapper
@@ -66,7 +67,7 @@ from ..subtrees.addon_common.common.colors import colorname_to_color
 color_mesh = colorname_to_color['indigo']
 color_select = colorname_to_color['darkorange']
 edge_size = 2.0
-vert_size = 100.0
+vert_size = 20.0
 normal_offset_multiplier = 1.0
 constrain_offset = True
 
@@ -98,7 +99,7 @@ class D3PointsRender():
         self.buf_matrix_normal = XForm(Matrix.Identity(4)).to_bglMatrix_Normal()
         self.buffered_renders = []
         self.drawing = Globals.drawing
-
+        self.time = 0
         self.d3_points = d3_points
         #self.replace_rfmesh(rfmesh)
         self.replace_opts(opts)
@@ -140,8 +141,18 @@ class D3PointsRender():
         #print('gathering data')
         self.buffered_renders = []  #TODO, smart update only the buffers that need it
 
-        def sel(selected):
-            return 1.0 if selected else 0.0
+        def sel(v):
+            if self.d3_points.selected != -1:
+                if self.d3_points.b_pts[self.d3_points.selected] == v:
+                    print(self.d3_points.selected)
+                    return 1.0
+            return 0.0
+
+        def hov(v):
+            if self.d3_points.hovered[0]:
+                if self.d3_points.b_pts[self.d3_points.hovered[1]] == v:
+                    return 1.0
+            return 0.0
 
         def gather():
             vert_count = 100000
@@ -162,8 +173,8 @@ class D3PointsRender():
                         vert_data = {
                             'vco': [tuple((v.location.x, v.location.y, v.location.z)) for v in verts[i0:i1]],
                             'vno': [tuple((v.location.x, v.location.y, v.location.z)) for v in verts[i0:i1]],
-                            'sel': [sel(True) for v in verts[i0:i1]],
-                            'hov': [sel(v.hovered) for v in verts[i0:i1]],
+                            'sel': [sel(v) for v in verts[i0:i1]],
+                            'hov': [hov(v) for v in verts[i0:i1]],
                             'idx': None,  # list(range(len(self.bmesh.verts))),
                         }
                         
@@ -228,8 +239,7 @@ class D3PointsRender():
                 opts['point hidden']        = 1 - alpha_above
                 opts['point mirror hidden'] = 1 - alpha_above
                 for buffered_render in self.buffered_renders:
-                    print(buffered_render)
-                    buffered_render.draw(opts)
+                    buffered_render.draw(opts, self.time)
 
             if not opts.get('no below', False):
                 # draw geometry hidden behind
@@ -239,7 +249,7 @@ class D3PointsRender():
                     opts['point hidden']        = 1 - alpha_below
                     opts['point mirror hidden'] = 1 - alpha_below
                     for buffered_render in self.buffered_renders:
-                        buffered_render.draw(opts)
+                        buffered_render.draw(opts, self.time)
                 #pr.done()
 
             bgl.glDepthFunc(bgl.GL_LEQUAL)
@@ -249,3 +259,5 @@ class D3PointsRender():
             #print('Exception Exception')
             Debugger.print_exception()
             pass
+
+        self.time += 1

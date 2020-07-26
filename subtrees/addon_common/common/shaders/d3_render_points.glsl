@@ -1,6 +1,8 @@
 uniform vec4  color;            // color of geometry if not selected
 uniform vec4  color_selected;   // color of geometry if selected
 
+uniform float time;
+
 uniform bool  use_selection;    // false: ignore selected, true: consider selected
 uniform bool  use_rounding;
 
@@ -39,7 +41,7 @@ attribute vec3  vert_pos;       // position wrt model
 attribute vec2  vert_offset;
 attribute vec3  vert_norm;      // normal wrt model
 attribute float selected;       // is vertex selected?  0=no; 1=yes
-attribute float hovered;
+attribute float hovered;        // is vertex hovered?  0=no; 1=yes
 
 varying vec4 vPPosition;        // final position (projected)
 varying vec4 vCPosition;        // position wrt camera
@@ -53,6 +55,8 @@ varying vec4 vPTPosition_z;     // position wrt target projected
 varying vec3 vCNormal;          // normal wrt camera
 varying vec4 vColor;            // color of geometry (considers selection)
 varying vec2 vPCPosition;
+varying float vHovered;
+varying float vSelected;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -102,6 +106,9 @@ void main() {
 
     gl_Position = vPPosition;
 
+    vHovered = hovered;
+    vSelected = selected;
+    
     vColor = (!use_selection || selected < 0.5) ? color : color_selected;
     vColor = (!use_selection || hovered < 0.5) ? color : color_selected;
     vColor.a *= (selected > 0.5) ? 1.0 : 1.0 - hidden;
@@ -180,14 +187,10 @@ void main() {
             ;
     }
 
-    alpha *= pow(max(vCNormal.z, 0.01), 0.25);
+    float zCamNorm = vCNormal.z;
+    vec2 p = screen_size * (vPCPosition - vPPosition.xy);
 
-    vec2 p =  screen_size * (vPCPosition - vPPosition.xy);
-    p += vec2(-90.0, -20.0);
-    p *= 0.01;
-    p.y *= -1.0;
-
-    vec4 shaderOut = mainPointShader(p, 0.0, 0.0);
+    vec4 shaderOut = mainPointShader(p, zCamNorm, time, vSelected, vHovered);
     
     // https://wiki.blender.org/wiki/Reference/Release_Notes/2.83/Python_API
     outColor = blender_srgb_to_framebuffer_space(shaderOut);

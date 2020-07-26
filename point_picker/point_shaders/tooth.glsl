@@ -30,9 +30,14 @@ float smoothMerge(float d1, float d2, float k)
 }
 
 
-vec4 mainPointShader(vec2 coords, float selected, float hovered)
+vec4 mainPointShader(vec2 coords, float zCamNormal, float time, float sel, float hov)
 {
     vec2 p  = coords;
+    float alpha = pow(max(zCamNormal, 0.01), 0.25);
+
+    p += vec2(-90.0, -20.0);
+    p *= 0.01;
+    p.y *= -1.0;
 
     vec2 v1 = cos( 2.4 + vec2(0.0,2.00) + 0.0 );
 	vec2 v2 = cos( 2.4 + vec2(0.0,1.50) + 1.5 );
@@ -50,7 +55,7 @@ vec4 mainPointShader(vec2 coords, float selected, float hovered)
     
     float mask = smoothstep(0.0, 0.1, d-0.5);
     
-    d *= mask;
+    d *= mask * sin(time*0.05)+0.5;
 
-    return vec4(d,d,d,1.0);
+    return vec4(1.0,1.0,1.0,zCamNormal);
 }

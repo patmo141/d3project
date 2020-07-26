@@ -38,6 +38,7 @@ import ctypes
 import random
 import traceback
 from pathlib import Path
+import time
 
 import bgl
 import bpy
@@ -154,7 +155,7 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from ..subtrees.addon_common.common.shaders import Shader
 
-point_shader_name = "tooth"
+point_shader_name = "target_point"
 point_shader = open(Path(__file__).parent / "point_shaders" / f"{point_shader_name}.glsl", 'rt').read()
 verts_vs, verts_fs = Shader.parse_file('d3_render_points.glsl', includeVersion=False)
 verts_fs = point_shader + verts_fs
@@ -234,7 +235,7 @@ class BufferedRender_Batch:
         try: self.shader.uniform_bool(k, v)
         except Exception as e: self.quarantine(k)
 
-    def draw(self, opts):
+    def draw(self, opts, time):
         if self.shader == None or self.count == 0: return
         if self.gltype == bgl.GL_POINTS and opts.get('point size', 1.0) <= 0: return
 
@@ -250,6 +251,8 @@ class BufferedRender_Batch:
         self.uniform_float('dotoffset',      0)
         self.uniform_float('vert_scale',     (1, 1, 1))
         self.uniform_float('radius',         1) #random.random()*10)
+
+        self.uniform_float('time',         time)
 
         nosel = opts.get('no selection', False)
         self.uniform_bool('use_selection', [not nosel]) # must be a sequence!?
@@ -280,9 +283,7 @@ class BufferedRender_Batch:
         self.uniform_float('focus_mult',       focus)
         self.uniform_bool('cull_backfaces',   [opts.get('cull backfaces', False)])
         self.uniform_float('alpha_backface',   opts.get('alpha backface', 0.5))
-
         self.set_options(self.options_prefix, opts)
         self._draw(1, 1, 1)
-
         gpu.shader.unbind()
 

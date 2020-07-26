@@ -98,5 +98,5 @@ class PointsPicker_UI_Draw():
                 #bgl.glColor4f(*color)
                 vector2d = view3d_utils.location_3d_to_region_2d(region, rv3d, pt.location)
                 if vector2d:
-                    blf.position(0, vector2d[0] + 30, vector2d[1] + 5, 0)
+                    blf.position(0, vector2d[0] + 10, vector2d[1] - 5, 0)
                     blf.draw(0, pt.label) #font_id = 0
