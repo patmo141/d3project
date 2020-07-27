@@ -2,7 +2,7 @@ madevec4 mainPointShader(vec2 coords, float zoffset, float time, float sel, floa
 {
     vec2 p  = coords;
     float dist = length(p);
-    float smallGradient = dist * -0.01 + 0.1;
+    float smallGradient = dist * -0.01 + 0.2;
     float alpha = pow(min(max(smallGradient, 0.0), 1.0), 0.1) * 2.0;
     alpha *= pow(max(zoffset, 0.01), 0.25);    
     
