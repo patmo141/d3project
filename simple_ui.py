@@ -42,7 +42,7 @@ from .subtrees.addon_common.common.boundvar import BoundInt, BoundFloat, BoundBo
 options = {}
 options["variable_1"] = 5.0
 options["variable_3"] = True
-
+options["variable_4"] = 1.0  #scrub/slider example
 
 class CookieCutter_UITest(CookieCutter):
     bl_idname = "view3d.cookiecutter_ui_test"
@@ -64,6 +64,20 @@ class CookieCutter_UITest(CookieCutter):
         self.variable_2 = v
         #if self.variable_2.disabled: return
 
+
+
+    #for this, checkout "polystrips_props.py'
+    @property
+    def variable_4_gs(self):
+        return getattr(self, '_slider_value', 0)
+    
+    @variable_4_gs.setter
+    def variable_4_gs(self, v):
+        if abs(self.variable_4 - v) < .1: return  #this prevents updating at too fine a granularity
+        self.variable_4 = v
+        
+        
+        
     ### Redefine/OVerride of defaults methods from CookieCutter ###
     def start(self):
         opts = {
@@ -74,6 +88,7 @@ class CookieCutter_UITest(CookieCutter):
             }
         
         
+        self._slider_value = 1.0  #not sure best way to store/save these
         
         keymaps = {}
         keymaps['done'] = {'ESC'} #keymaps['done'] | {'ESC'}
@@ -87,6 +102,8 @@ class CookieCutter_UITest(CookieCutter):
         self.variable_1 = BoundFloat('''options['variable_1']''', min_value =0.5, max_value = 15.5)
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
         self.variable_3 = BoundBool('''options['variable_3']''')
+        self.variable_4 = BoundFloat('''options['variable_4']''', min_value =0.0, max_value = 1.0)
+        
         
         #self.reload_stylings()
         self.setup_ui()
@@ -173,7 +190,15 @@ class CookieCutter_UITest(CookieCutter):
                 label='ui.input_checkbox',
                 title='True/False property to BoundBool')
     
-        container.builder([i1, i2, i3])
+        i4 = ui.labeled_input_text(
+                    label='SLider',
+                    title='Some percentage or some slider',
+                    value= self.variable_4, #BoundFloat('''self.rftarget.mirror_mod.symmetry_threshold''', min_value=0, step_size=0.01),
+                    scrub=True,
+                )
+        
+        
+        container.builder([i1, i2, i3, i4])
     
     
     @CookieCutter.FSM_State('main')
