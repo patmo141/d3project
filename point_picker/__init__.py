@@ -92,8 +92,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         #self.cursor_modal_set("CROSSHAIR")
         #self.manipulator_hide()
         #self.b_pts = list()  # list of 'Point' objects (see /lib/point.py)
-        vs = [Vector((0,0,1)), Vector((1,0,0)), Vector((0, 1, 0)), Vector((0,0,-1)), Vector((-1, 0, 0)), Vector((0, -1, 0))]
-        self.b_pts = [D3Point(v, Vector((0,0,1)), Vector((0,0,1)), label = 'P' + str(i)) for i, v in enumerate(vs)]
+        self.b_pts = []
         
         
         self.points_shader = None
