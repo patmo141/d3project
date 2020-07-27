@@ -68,6 +68,7 @@ class PointsPicker_States():
                 if not self.add_point_pre(Vector((x, y))): return "main"
                 self.click_add_point(bpy.context, x, y)
                 self.add_point_post(self.b_pts[self.hovered[1]])
+                self.update_ui()
                 # update hovered point
                 x, y = self.event.mouse_region_x, self.event.mouse_region_y
                 self.hover(bpy.context, x, y)
