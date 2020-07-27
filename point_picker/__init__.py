@@ -133,8 +133,6 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
 
         self.xform = XForm(Matrix.Identity(4))
 
-        self.animated = False
-
         self.d3_points_render = D3PointsRender(self, render_opts)
         
         self.start_post()
@@ -165,8 +163,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
 
     def update(self):
         """ Check if we need to update any internal data structures """
-        if self.animated:
-            self.update_ui()
+        pass
 
     ###################################################
     # class variables
@@ -244,8 +241,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         else:
             self.b_pts[self.selected].location = mx @ loc
             self.b_pts[self.selected].surface_normal = no_mx @ no
-            if not self.animated:
-                self.update_ui()
+            self.update_ui()
 
     def grab_cancel(self):
         old_co =  self.grab_undo_loc
@@ -323,6 +319,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             self.remove_point_pre(self.hovered[1])
             self.b_pts.pop(self.hovered[1])
             self.remove_point_post()
+            self.update_ui()
             if self.selected == self.hovered[1]: self.selected = -1
             elif self.selected > self.hovered[1]: self.selected -= 1
             self.hovered = [None, -1]
@@ -393,8 +390,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
                 if not self.hovered[0]:
                     p.hovered = False
 
-            if not self.animated:
-                self.update_ui()
+            self.update_ui()
             
         #print(self.hovered)
     #############################################
@@ -410,15 +406,13 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         return True
 
     def add_point_post(self, new_point):
-        if not self.animated:
-            self.update_ui()
+        pass
 
     def remove_point_pre(self, removed_pt):
         pass
     
     def remove_point_post(self):
-        if not self.animated:
-            self.update_ui()
+        pass
     
     def move_point_post(self, moved_point):
         pass
