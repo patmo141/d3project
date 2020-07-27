@@ -159,7 +159,6 @@ point_shader_name = "target_point"
 point_shader = open(Path(__file__).parent / "point_shaders" / f"{point_shader_name}.glsl", 'rt').read()
 verts_vs, verts_fs = Shader.parse_file('d3_render_points.glsl', includeVersion=False)
 verts_fs = point_shader + verts_fs
-
 verts_shader = gpu.types.GPUShader(verts_vs, verts_fs)
 
 class BufferedRender_Batch:
