@@ -46,8 +46,6 @@ class PointsPicker_States():
     @CookieCutter.FSM_State("main")
     def modal_main(self):
         
-        
-        
         if self.actions.pressed("cancel") and self.can_cancel():
             self.done(cancel=True)
             return 'cancel'

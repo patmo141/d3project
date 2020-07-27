@@ -22,93 +22,68 @@
 import bpy
 import blf
 import bgl
+from mathutils import Vector, Matrix, Color, kdtree
 import gpu
 from gpu_extras.batch import batch_for_shader
 
 
 from mathutils import Vector
 from bpy_extras import view3d_utils
+from bpy_extras.view3d_utils import location_3d_to_region_2d, region_2d_to_vector_3d
 
 # Module imports
 from ..subtrees.addon_common.cookiecutter.cookiecutter import CookieCutter
+from .points_picker_render import D3PointsRender
+from ..subtrees.addon_common.common.globals import Globals
+from ..subtrees.addon_common.common.blender import tag_redraw_all
+from ..subtrees.addon_common.common.maths import Point, Vec, Direction, Normal
+from ..subtrees.addon_common.common.maths import Point2D, Vec2D, Direction2D
+from ..subtrees.addon_common.common.maths import matrix_normal, Direction
+from ..subtrees.addon_common.common.maths import Color
+from ..subtrees.addon_common.common.drawing import (
+    CC_DRAW,
+    CC_2D_POINTS,
+    CC_3D_TRIANGLES
+)
 
-
-#borrowed from edge filet from Zeffi (included with blend)
-def draw_3d_points(context, points, size, color = (1,0,0,1)):
-    region = context.region
-    rv3d = context.space_data.region_3d
-
-
-    bgl.glEnable(bgl.GL_POINT_SMOOTH)
-    bgl.glPointSize(size)
-    # bgl.glEnable(bgl.GL_BLEND)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-
-    bgl.glDepthRange(0, 0.9990)     # squeeze depth just a bit
-    bgl.glEnable(bgl.GL_BLEND)
-
-    bgl.glDepthFunc(bgl.GL_LEQUAL)
-    bgl.glDepthMask(bgl.GL_FALSE)   # do not overwrite depth
-
-    bgl.glBegin(bgl.GL_POINTS)
-    # draw red
-    bgl.glColor4f(*color)
-    for coord in points:
-        vector3d = (coord.x, coord.y, coord.z)
-        bgl.glVertex3f(*vector3d)
-        # vector2d = view3d_utils.location_3d_to_region_2d(region, rv3d, vector3d)
-        # bgl.glVertex2f(*vector2d)
-    bgl.glEnd()
-
-    bgl.glDepthFunc(bgl.GL_LEQUAL)
-    bgl.glDepthRange(0.0, 1.0)
-    bgl.glDepthMask(bgl.GL_TRUE)
-
-    bgl.glDisable(bgl.GL_POINT_SMOOTH)
-    bgl.glDisable(bgl.GL_POINTS)
-    return
+from ..subtrees.addon_common.common.maths import Ray, XForm, BBox, Plane
 
 class PointsPicker_UI_Draw():
-
     ###################################################
     # draw functions
 
-
-    def create_points_batch(self):
-        vertices = [(v.location.x, v.location.y, v.location.z) for v in self.b_pts]        #TODO, use D3Point
-        self.points_shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
-        self.points_batch = batch_for_shader(self.points_shader, 'POINTS', {"pos":vertices})
-        
-        
-        
+    def update_ui(self):
+        self.d3_points_render._gather_data()
+        print('updating ui')
+        tag_redraw_all('Updated Points')
         
     @CookieCutter.Draw("post3d")
     def draw_postview(self):
-        
-        
-        if not self.points_shader: return
-        
-        bgl.glDepthMask(bgl.GL_TRUE)
-        bgl.glPointSize(8)
-        bgl.glDepthFunc(bgl.GL_LEQUAL)
-        
-        self.points_shader.bind()
-        self.points_shader.uniform_float("color", (1,1,1,1))
-        self.points_batch.draw(self.points_shader)
-        
-        bgl.glDepthFunc(bgl.GL_LEQUAL)
-        bgl.glDepthMask(bgl.GL_TRUE)
-        bgl.glDepthRange(0, 1)
-        
-        #bgl.glDisable(bgl.GL_POINT_SMOOTH)
-        #bgl.glDisable(bgl.GL_POINTS)
-        bgl.glPointSize(1)
-    
-    
+        buf_matrix_target = XForm(Matrix.Identity(4)).mx_p # self.rftarget_draw.buf_matrix_model
+        buf_matrix_target_inv = XForm(Matrix.Identity(4)).imx_p # self.rftarget_draw.buf_matrix_inverse
+        buf_matrix_view = self.actions.r3d.view_matrix # XForm.to_bglMatrix(self.actions.r3d.view_matrix)
+        buf_matrix_view_invtrans = matrix_normal(self.actions.r3d.view_matrix) # XForm.to_bglMatrix(matrix_normal(self.actions.r3d.view_matrix))
+        buf_matrix_proj = self.actions.r3d.window_matrix # XForm.to_bglMatrix(self.actions.r3d.window_matrix)
+        view_forward = self.actions.r3d.view_rotation @ Vector((0,0,-1))
+
+        bgl.glEnable(bgl.GL_MULTISAMPLE)
+        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+        bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+        bgl.glEnable(bgl.GL_BLEND)
+        # bgl.glEnable(bgl.GL_POINT_SMOOTH)
+        if True:  #why?
+            alpha_above,alpha_below = 1.0 , 0.1
+            cull_backfaces = False
+            alpha_backface = 0.01
+            self.d3_points_render.draw(
+                view_forward, 1.0,
+                buf_matrix_target, buf_matrix_target_inv,
+                buf_matrix_view, buf_matrix_view_invtrans, buf_matrix_proj,
+                alpha_above, alpha_below, cull_backfaces, alpha_backface
+            )
 
     @CookieCutter.Draw("post2d")
     def draw_postpixel(self):
-        
         
         region = bpy.context.region
         rv3d = bpy.context.space_data.region_3d
@@ -118,11 +93,10 @@ class PointsPicker_UI_Draw():
             if pt.label:
                 if self.selected == i:
                     color = (0,1,1,1)
-                elif self.hovered[1] == i:
-                    color = (0,1,0,1)
                 else:
                     color = (1,0,0,1)
                 #bgl.glColor4f(*color)
                 vector2d = view3d_utils.location_3d_to_region_2d(region, rv3d, pt.location)
-                blf.position(0, vector2d[0], vector2d[1] + 5, 0)
-                blf.draw(0, pt.label) #font_id = 0
+                if vector2d:
+                    blf.position(0, vector2d[0] + 10, vector2d[1] - 5, 0)
+                    blf.draw(0, pt.label) #font_id = 0

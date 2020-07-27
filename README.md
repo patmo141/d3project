@@ -20,7 +20,7 @@ this sets up the addon_common repository in a directory called "subtrees"  in yo
 later when you want to pull updates from addon_common
 
 ```
-git subtree pull —prefix=subtrees/addon_common addon_common b280
+git subtree pull --prefix=subtrees/addon_common addon_common b280
 ```
 
 If your project is using addon_common master branch, replace "b280" with "master"

@@ -54,6 +54,7 @@ class D3Point(object):
         self.surface_normal = surface_normal
         self.view_direction = view_direction
         self.source_object = source_object
+        self.hovered = False
 
     def __str__(self):
         return "<D3Point (%0.4f, %0.4f, %0.4f)>" % (self.location.x, self.location.y, self.location.z)

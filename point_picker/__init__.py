@@ -37,12 +37,13 @@ from .points_picker_states import PointsPicker_States
 from .points_picker_ui_init import PointsPicker_UI_Init
 from .points_picker_ui_draw import PointsPicker_UI_Draw
 from .points_picker_datastructure import D3Point
+from .points_picker_render import D3PointsRender
+from .points_picker_render import opts as render_opts
 
-
+from ..subtrees.addon_common.common.maths import XForm
 
 #from ..subtrees.addon_common.common.maths import Point, Point2D
 #from ...subtrees.addon_common.common.decorators import PersistentOptions
-#from ...functions.common import *
 
 
 #some settings container
@@ -96,10 +97,7 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         
         
         self.points_shader = None
-        self.points_batch = None
-        self.create_points_batch() 
-        
-        
+        self.points_batch = None    
         default_keymap = {
                         "add":    {"LEFTMOUSE"},
                         "grab":   {"LEFTMOUSE"},
@@ -117,8 +115,6 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
         self.variable_3 = BoundBool('''options['variable_3']''')
         
-        
-        
         self.ui_setup()
         self.ui_setup_post()
 
@@ -134,7 +130,15 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         self.grab_undo_loc = None
         self.grab_undo_no = None
         self.mouse = (None, None)
+
+        self.xform = XForm(Matrix.Identity(4))
+
+        self.animated = False
+
+        self.d3_points_render = D3PointsRender(self, render_opts)
+        
         self.start_post()
+        self.update_ui()
 
     def end_commit(self):
         """ Commit changes to mesh! """
@@ -161,7 +165,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
 
     def update(self):
         """ Check if we need to update any internal data structures """
-        pass
+        if self.animated:
+            self.update_ui()
 
     ###################################################
     # class variables
@@ -239,6 +244,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         else:
             self.b_pts[self.selected].location = mx @ loc
             self.b_pts[self.selected].surface_normal = no_mx @ no
+            if not self.animated:
+                self.update_ui()
 
     def grab_cancel(self):
         old_co =  self.grab_undo_loc
@@ -298,11 +305,6 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         if not hit:
             self.selected = -1
             return False
-
-        # select existing point
-        if self.hovered[0] == 'POINT':
-            self.selected = self.hovered[1]
-            return False
         # add new point
         elif self.hovered[0] == None:
             new_point = D3Point(location=mx @ loc, surface_normal=no_mx @ no, view_direction=view_vector, source_object=obj if self.snap_type == "SCENE" else self.snap_ob)
@@ -310,6 +312,8 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
             new_point.label = self.getLabel(len(self.b_pts) - 1)
             self.hovered = ['POINT', len(self.b_pts) - 1]
             return True
+        else:
+            self.selected = self.hovered[1]
 
     def click_remove_point(self, mode='mouse'):
         
@@ -377,7 +381,21 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         closest_3d_point = min(self.b_pts, key=dist3d)
         screen_dist = dist(loc3d_reg2D(context.region, context.space_data.region_3d, closest_3d_point.location))
 
+        last_hovered = self.hovered
         self.hovered = ['POINT', self.b_pts.index(closest_3d_point)] if screen_dist < 20 else [None, -1]
+
+        if last_hovered != self.hovered:
+            for idx, p in enumerate(self.b_pts):
+                if self.b_pts.index(closest_3d_point) == idx:
+                    p.hovered = True
+                else:
+                    p.hovered = False
+                if not self.hovered[0]:
+                    p.hovered = False
+
+            if not self.animated:
+                self.update_ui()
+            
         #print(self.hovered)
     #############################################
     # Subclassing functions
@@ -392,13 +410,15 @@ class CookieCutterPoints(PointsPicker_UI_Init, PointsPicker_States, PointsPicker
         return True
 
     def add_point_post(self, new_point):
-        pass
+        if not self.animated:
+            self.update_ui()
 
     def remove_point_pre(self, removed_pt):
         pass
     
-    def remove_point_post(self, removed_pt):
-        pass
+    def remove_point_post(self):
+        if not self.animated:
+            self.update_ui()
     
     def move_point_post(self, moved_point):
         pass
