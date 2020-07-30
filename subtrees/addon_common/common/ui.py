@@ -207,29 +207,30 @@ def input_checkbox(**kwargs):
     ui_proxy.map_to_all({'title'})
     return ui_proxy
 
-def input_range(value=None, min=None, max=None, step=None, **kwargs):
+def input_range(value=None, min_value=None, max_value=None, step_size=None, **kwargs):
+    # right now, step_size is not used
     t = type(value)
     if t in {BoundFloat, BoundInt}:
         # (possibly) override min/max/step of value
-        # if not None, choose max of min param and value's min
-        # if not None, choose min of max param and value's max
-        # if not None, choose step param
+        # if not None, choose max of min_value param and value's min_value
+        # if not None, choose min of max_value param and value's max_value
+        # if not None, choose step_size param
         overrides = {}
-        if min  is not None: overrides['min_value'] = max(min, value.min_value)
-        if max  is not None: overrides['max_value'] = min(max, value.max_value)
-        if step is not None: overrides['step_size'] = step
+        if min_value is not None: overrides['min_value'] = max(min_value, value.min_value)
+        if max_value is not None: overrides['max_value'] = min(max_value, value.max_value)
+        if step_size is not None: overrides['step_size'] = step_size
         if overrides: value = value.clone_with_overrides(**overrides)
     elif t in {float, int}:
         # assuming value is float!
-        assert max is not None and min is not None, f'UI input range with non-bound value ({value}, {t}) must have both min and max specified ({min}, {max})'
-        value = BoundFloat('value', min_value=min, max_value=max, step_size=step)
+        assert max_value is not None and min_value is not None, f'UI input range with non-bound value ({value}, {t}) must have both min and max specified ({min_value}, {max_value})'
+        value = BoundFloat('value', min_value=min_value, max_value=max_value, step_size=step_size)
     else:
         assert False, f'Unhandled UI input range value type ({t})'
 
     kw_container = kwargs_splitter({'parent'}, kwargs)
 
     ui_container = UI_Element(tagName='div', classes='inputrange-container', **kw_container)
-    ui_input = UI_Element(tagName='input', classes='inputrange-input', type='range', parent=ui_container, value=value, **kwargs)
+    ui_input = UI_Element(tagName='input', classes='inputrange-input', type='range', atomic=True, parent=ui_container, value=value, **kwargs)
     ui_left = UI_Element(tagName='span', classes='inputrange-left', parent=ui_input)
     ui_right = UI_Element(tagName='span', classes='inputrange-right', parent=ui_input)
     ui_handle = UI_Element(tagName='span', classes='inputrange-handle', parent=ui_input)
@@ -240,22 +241,24 @@ def input_range(value=None, min=None, max=None, step=None, **kwargs):
     state.cancel = delay_exec('''value.value = state.initval; state.cancelled = True''')
 
     def postflow():
+        # since ui_left, ui_right, and ui_handle are all absolutely positioned UI elements,
+        # we can safely move them around without dirtying (the UI system does not need to
+        # clean anything or reflow the elements)
+
         w, W = ui_handle.width_pixels, ui_input.width_pixels
-        if w == 'auto' or W == 'auto': return
-        m, M = value.min_value, value.max_value
-        mw = W - w
-        p = (value.value - m) / (M - m)
-        hl = p * mw
-        m = hl + (w / 2)
-        ui_left.style = f'left:0px; width:{math.floor(m)}px'
-        ui_right.style = f'left:{math.ceil(m)}px; width:{math.floor(W-m)}px'
-        ui_handle.style = f'left:{math.floor(hl)}px'
-        # ui_handle.style = f'left:{p*100}%'
-        ui_handle.reposition(
-        #     left=hl,
-        #     # top=0,
-        #     clamp_position=True,
-        )
+        if w == 'auto' or W == 'auto': return   # UI system is not ready yet
+        W -= ui_input._mbp_width
+
+        mw = W - w                  # max dist the handle can move
+        p = value.bounded_ratio     # convert value to [0,1] based on min,max
+        hl = p * mw                 # find where handle (left side) should be
+        m = hl + (w / 2)            # compute center of handle
+        ui_left.width_override = math.floor(m)
+        ui_right.width_override = math.floor(W-m)
+        ui_right._alignment_offset = Vec2D((math.ceil(m), 0))
+        ui_handle._alignment_offset = Vec2D((math.floor(hl), 0))
+        ui_left.dirty('input range value changed', 'renderbuf')
+        ui_right.dirty('input range value changed', 'renderbuf')
 
     def handle_mousedown(e):
         if e.button[2] and state['grabbed']:
@@ -287,10 +290,10 @@ def input_range(value=None, min=None, max=None, step=None, **kwargs):
         if type(e.key) is int and is_keycode(e.key, 'ESC'):
             state.cancel()
             e.stop_propagation()
-    ui_handle.add_eventListener('on_mousemove', handle_mousemove, useCapture=True)
-    ui_handle.add_eventListener('on_mousedown', handle_mousedown, useCapture=True)
-    ui_handle.add_eventListener('on_mouseup',   handle_mouseup,   useCapture=True)
-    ui_handle.add_eventListener('on_keypress',  handle_keypress,  useCapture=True)
+    ui_input.add_eventListener('on_mousemove', handle_mousemove, useCapture=True)
+    ui_input.add_eventListener('on_mousedown', handle_mousedown, useCapture=True)
+    ui_input.add_eventListener('on_mouseup',   handle_mouseup,   useCapture=True)
+    ui_input.add_eventListener('on_keypress',  handle_keypress,  useCapture=True)
 
     ui_handle.postflow = postflow
     value.on_change(postflow)
