@@ -41,8 +41,9 @@ from .subtrees.addon_common.common.boundvar import BoundInt, BoundFloat, BoundBo
 #some settings container
 options = {}
 options["variable_1"] = 5.0
-options["variable_3"] = True
-options["variable_4"] = 1.0  #scrub/slider example
+options["variable_3"] = True #bool text_box example
+options["variable_4"] = 1.0  #scrub/input text example
+options["variable_5"] = 0.0  #input range example
 
 class CookieCutter_UITest(CookieCutter):
     bl_idname = "view3d.cookiecutter_ui_test"
@@ -103,7 +104,7 @@ class CookieCutter_UITest(CookieCutter):
         self.variable_2 = BoundInt('''self.variable_2_gs''',  min_value = 0, max_value = 10)
         self.variable_3 = BoundBool('''options['variable_3']''')
         self.variable_4 = BoundFloat('''options['variable_4']''', min_value =0.0, max_value = 1.0)
-        
+        self.variable_5 = BoundFloat('''options['variable_5']''', min_value =0.0, max_value = 1.0)
         
         #self.reload_stylings()
         self.setup_ui()
@@ -198,7 +199,9 @@ class CookieCutter_UITest(CookieCutter):
                 )
         
         
-        container.builder([i1, i2, i3, i4])
+        i5 = ui.input_range(value = self.variable_5) #, min_value = 0.0, max_value = 1.0, step = .1)  #label? title? etc?  iteritems not working
+        
+        container.builder([i1, i2, i3, i4, i5])
     
     
     @CookieCutter.FSM_State('main')
