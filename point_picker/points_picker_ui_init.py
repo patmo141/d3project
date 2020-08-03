@@ -31,39 +31,40 @@ class PointsPicker_UI_Init():
     # draw init
 
     def ui_setup(self):
-        # UI Box functionality
-        # NONE!
+        pass
+        # # UI Box functionality
+        # # NONE!
         
-        self.ui_main = ui.framed_dialog(label = 'Point Picker',
-                                          resiable = None,
-                                          resiable_x = True,
-                                          resizable_y=False, 
-                                          closeable=False, 
-                                          moveable=True, 
-                                          hide_on_close=False,
-                                          parent=self.document.body)
+        # self.ui_main = ui.framed_dialog(label = 'Point Picker',
+        #                                   resiable = None,
+        #                                   resiable_x = True,
+        #                                   resizable_y=False, 
+        #                                   closeable=False, 
+        #                                   moveable=True, 
+        #                                   hide_on_close=False,
+        #                                   parent=self.document.body)
         
-        # tools
-        ui_tools = ui.div(id="tools", parent=self.ui_main)
-        #ui.button(label='ui.button', title = 'self.tool_action() method linked to button', parent=ui_tools, on_mouseclick=self.tool_action)    
+        # # tools
+        # ui_tools = ui.div(id="tools", parent=self.ui_main)
+        # #ui.button(label='ui.button', title = 'self.tool_action() method linked to button', parent=ui_tools, on_mouseclick=self.tool_action)    
         
-        #create a collapsille container to hold a few variables
-        container = ui.collapsible('options', parent = self.ui_main)
+        # #create a collapsille container to hold a few variables
+        # container = ui.collapsible('options', parent = self.ui_main)
         
-        i1 = ui.labeled_input_text(label='ui.labeled_input_text', 
-                              title='float property to BoundFLoat', 
-                              value= self.variable_1) 
+        # i1 = ui.labeled_input_text(label='ui.labeled_input_text', 
+        #                       title='float property to BoundFLoat', 
+        #                       value= self.variable_1) 
     
-        i2 = ui.labeled_input_text(label='ui.labled_input_text', 
-                              title='integer property to BoundInt', 
-                              value= self.variable_2)
+        # i2 = ui.labeled_input_text(label='ui.labled_input_text', 
+        #                       title='integer property to BoundInt', 
+        #                       value= self.variable_2)
         
         
-        i3 = ui.input_checkbox(
-                label='ui.input_checkbox',
-                title='True/False property to BoundBool')
+        # i3 = ui.input_checkbox(
+        #         label='ui.input_checkbox',
+        #         title='True/False property to BoundBool')
     
-        container.builder([i1, i2, i3])
+        # container.builder([i1, i2, i3])
         
         
 
