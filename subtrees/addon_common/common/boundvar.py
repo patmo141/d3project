@@ -54,7 +54,7 @@ class BoundVar:
     def clone_with_overrides(self, **overrides):
         # perform SHALLOW copy (shared attribs, such as _callbacks!) and override attribs as given
         other = copy.copy(self)
-        for k, v in overiddes.iteritems():
+        for k, v in overrides.iteritems():
             try:
                 setattr(other, k, v)
             except AttributeError:
