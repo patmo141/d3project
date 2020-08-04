@@ -22,16 +22,19 @@ from mathutils import Vector
 from .simple_ui import CookieCutter_UITest
 from .point_picker import CookieCutterPoints
 from .selective_pass_through import CookieCutter_PassTrhoughTest
+from .pass_through import CookieCutter_SculptPassThrough
 
 def register():
     bpy.utils.register_class(CookieCutter_UITest)
     bpy.utils.register_class(CookieCutterPoints)
     bpy.utils.register_class(CookieCutter_PassTrhoughTest)
+    bpy.utils.register_class(CookieCutter_SculptPassThrough)
 
 def unregister():
     bpy.utils.unregister_class(CookieCutter_UITest)
     bpy.utils.unregister_class(CookieCutterPoints)
     bpy.utils.register_class(CookieCutter_PassTrhoughTest)
+    bpy.utils.register_class(CookieCutter_SculptPassThrough)
 
 if __name__ == "__main__":
     register()
