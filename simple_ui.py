@@ -199,7 +199,7 @@ class CookieCutter_UITest(CookieCutter):
                 )
         
         
-        i5 = ui.input_range(value = self.variable_5, min_value = 0.0, max_value = 1.0, step = .1)  #label? title? etc?  iteritems not working
+        i5 = ui.input_range(value = self.variable_5)  #, min_value = 0.0, max_value = 1.0, step = .1)  #label? title? etc?  iteritems not working
         
         container.builder([i1, i2, i3, i4, i5])
     
